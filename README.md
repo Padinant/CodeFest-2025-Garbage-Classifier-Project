@@ -1,0 +1,1 @@
+# CodeFest-2025-Garbage-Classifier-Project
