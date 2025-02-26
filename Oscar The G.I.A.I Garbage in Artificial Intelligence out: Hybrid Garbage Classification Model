@@ -1,0 +1,124 @@
+import os
+import pymc as pm  # Bayesian inference
+import pytensor.tensor as pt
+import torch
+import torch.nn as nn
+import torchvision.transforms as transforms
+import torchvision.datasets as datasets
+import torchvision.models as models
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pickle
+from PIL import Image
+import cv2
+import imghdr
+import glob
+from torch.utils.data import DataLoader, Subset
+import tensorflow as tf
+from tensorflow.keras import datasets, layers, models, Sequential
+from tensorflow.keras.layers import Flatten, Dense, Dropout, BatchNormalization, Conv2D, MaxPool2D, DepthwiseConv2D
+from tensorflow.keras.optimizers import Adam
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, confusion_matrix, precision_score, recall_score, f1_score
+from tqdm import tqdm
+import kagglehub
+import random
+
+# Ensure matplotlib graphs are displayed inline
+%matplotlib inline
+
+# Define dataset categories
+CATEGORIES = ["battery", "biological", "cardboard", "clothes", "glass", "metal", "paper", "plastic", "shoes", "trash"]
+
+# Set device for PyTorch
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using PyTorch device: {device}")
+
+# First step is to download the dataset directly from Kaggle
+# Step 1.1 - add your kaggle info
+os.environ['KAGGLE_USERNAME'] = ""  # todo: add your username here
+os.environ['KAGGLE_KEY'] = "" # todo: add your key here
+
+# Step 1.2: Install the Kaggle API client
+!pip install kaggle
+
+# Step 1.3: Download garbage dataset
+!kaggle datasets download -d sumn2u/garbage-classification-v2
+
+# Step 1.4: Unzip the downloaded dataset
+!unzip garbage-classification-v2.zip
+
+# Define useful variables
+image_dir = '/content/garbage-dataset'
+
+# Define image resizing variables
+img_width = 250
+img_height = 250
+
+# Function to remove transparency from images
+def remove_transparency(image_path, bg_color=(255, 255, 255)):
+    img = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)  # Load image with all channels (including alpha)
+    if img.shape[-1] == 4:  # Has an alpha channel
+        alpha = img[:, :, 3] / 255.0  # Normalize alpha to 0-1
+        img_rgb = img[:, :, :3]  # Get RGB channels
+        img_new = (1. - alpha[:, :, None]) * np.array(bg_color, dtype=np.float32) + alpha[:, :, None] * img_rgb
+        img_new = img_new.astype(np.uint8)
+        cv2.imwrite(image_path, img_new)  # Overwrite the image
+
+# Step 2.3: Dropping any remaining unexpected files
+base_path = '/content/garbage-dataset/'
+folder_names = CATEGORIES
+
+count = 0
+for folder_name in folder_names:
+    folder_path = os.path.join(base_path, folder_name)
+    all_files = glob.glob(os.path.join(folder_path, "*"))
+    for file in all_files:
+        file_type = imghdr.what(file)  # Detect file format
+        if file_type not in ["jpeg", "png", "jpg"]:
+            print(f"Unknown image type: {file} (Detected as {file_type})")
+            os.remove(file)
+            print(f"{file} was successfully removed from dataset")
+            count += 1
+print(f"Total files removed: {count}")
+
+# Process all PNG and JPEG images and remove transparency
+for folder_name in folder_names:
+    folder_path = os.path.join(base_path, folder_name)
+    for ext in [".png", ".jpeg"]:
+        image_paths = glob.glob(os.path.join(folder_path, f"*{ext}"))  # Find all PNG and JPEG files
+        print(f"Processing {len(image_paths)} images in {folder_path}...")
+        for file in image_paths:
+            remove_transparency(file)
+        print("All transparent images have been processed.")
+
+# Load and shuffle dataset using TensorFlow
+full_dataset = tf.keras.utils.image_dataset_from_directory(
+    directory=image_dir,
+    image_size=(img_width, img_height),  # Resize images
+    batch_size=32,
+    shuffle=True,
+    seed=25,  # Setting the random seed for reproducibility
+    label_mode='int'
+)
+
+# Print dataset information
+print(f"Total number of batches: {len(full_dataset)}")
+category_list = full_dataset.class_names  # Saving categories as a list
+print(category_list)
+category_dict = {i: category for i, category in enumerate(full_dataset.class_names)}  # Save categories as dictionary
+print(category_dict)
+
+# Step 7: Saving the final Model
+
+# Step 7.1: Save the entire model (including additional info needed for further training)
+save_path1 = '/content/my_models/PadinaGarbageDetector1_6.keras'
+tf.keras.saving.save_model(model, save_path1)
+
+# Step 7.2: Save the h5 model
+save_path2 = '/content/my_models/PadinaGarbageDetector1_6.h5'
+model.save(save_path2)
+
+print("Model successfully saved!")
