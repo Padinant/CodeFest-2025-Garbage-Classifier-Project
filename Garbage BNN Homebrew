@@ -1,0 +1,391 @@
+# Trash BNN Model
+from IPython import get_ipython
+from IPython.display import display
+# %%
+# IMPORTANT: RUN THIS CELL IN ORDER TO IMPORT YOUR KAGGLE DATA SOURCES,
+# THEN FEEL FREE TO DELETE THIS CELL.
+# NOTE: THIS NOTEBOOK ENVIRONMENT DIFFERS FROM KAGGLE'S PYTHON
+# ENVIRONMENT SO THERE MAY BE MISSING LIBRARIES USED BY YOUR
+# NOTEBOOK.
+import kagglehub
+sumn2u_garbage_classification_v2_path = kagglehub.dataset_download('sumn2u/garbage-classification-v2')
+
+print('Data source import complete.')
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torchvision.transforms as transforms
+import torchvision.datasets as datasets
+import torchvision.models as models
+import numpy as np
+import os
+from torch.utils.data import DataLoader
+from torch.amp import GradScaler, autocast  # Updated AMP import for eco-friendly training
+
+# Define categories based on dataset
+CATEGORIES = ["battery", "biological", "cardboard", "clothes", "glass",
+              "metal", "paper", "plastic", "shoes", "trash"]
+
+# Set device (use GPU if available)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {device}")
+
+# Detect if running in Kaggle (no internet allowed)
+if "KAGGLE_KERNEL_RUN_TYPE" in os.environ:
+    print("Running in Kaggle - Loading ResNet without pretrained weights")
+    PRETRAINED_WEIGHTS = None  # No downloading allowed
+else:
+    print("Running in Colab - Loading ResNet with pretrained weights")
+    PRETRAINED_WEIGHTS = models.ResNet50_Weights.DEFAULT  # Downloads weights
+
+# Define dataset path - Fix applied for Kaggle dataset structure
+DATASET_PATH = sumn2u_garbage_classification_v2_path + "/garbage-dataset"
+
+# Print dataset structure to confirm correct path
+print("Dataset contents:", os.listdir(DATASET_PATH))
+
+# Define transformations for training images
+transform = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+])
+
+# Load dataset directly from garbage-dataset
+train_dataset = datasets.ImageFolder(root=DATASET_PATH, transform=transform)
+
+# Define DataLoader
+BATCH_SIZE = 32
+train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=2)  # Reduced workers to 2
+
+# Define Bayesian ResNet Model with Monte Carlo Dropout
+class BayesianResNet(nn.Module):
+    def __init__(self, num_classes=10):
+        super(BayesianResNet, self).__init__()
+        self.model = models.resnet50(weights=PRETRAINED_WEIGHTS)  # Uses pretrained weights if allowed
+        self.model.fc = nn.Sequential(
+            nn.Dropout(p=0.5),
+            nn.Linear(self.model.fc.in_features, num_classes)
+        )
+
+    def forward(self, x):
+        return self.model(x)
+
+# Initialize Model
+model = BayesianResNet(num_classes=len(CATEGORIES)).to(device)
+
+# Define Loss and Optimizer
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.Adam(model.parameters(), lr=0.0001)
+
+# Set up automatic mixed precision scaler for eco-friendly training
+scaler = torch.amp.GradScaler()  # ✅ Removed 'device_type' argument (now correct)
+
+# Training Loop with Automatic Mixed Precision
+num_epochs = 12  # Train for 12 epochs
+checkpoint_interval = 1  # Save model every epoch (modify as needed)
+
+# Define local checkpoint directory
+LOCAL_CHECKPOINT_DIR = "local_checkpoints"
+
+# Create the local checkpoint directory if it doesn't exist
+if not os.path.exists(LOCAL_CHECKPOINT_DIR):
+    os.makedirs(LOCAL_CHECKPOINT_DIR)
+
+print(f"Starting epoch {1}/{num_epochs}...")  # Confirms Loop Run
+
+for epoch in range(num_epochs):
+    model.train()
+    running_loss = 0.0
+
+    for images, labels in train_loader:
+        images, labels = images.to(device), labels.to(device)
+
+        optimizer.zero_grad()
+        # Use autocast to reduce power demands with mixed precision
+        with torch.amp.autocast(device_type="cuda"):  # ✅ Fixed deprecated autocast usage
+            outputs = model(images)
+            loss = criterion(outputs, labels)
+
+        scaler.scale(loss).backward()
+        scaler.step(optimizer)
+        scaler.update()
+
+        running_loss += loss.item()
+
+    # Print epoch loss
+    print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {running_loss / len(train_loader):.4f}")
+
+    # Save checkpoint every epoch to local directory
+    checkpoint_path = os.path.join(LOCAL_CHECKPOINT_DIR, f"resnet50_epoch{epoch+1}.pth")
+    torch.save(model.state_dict(), checkpoint_path)
+    print(f"Checkpoint saved at: {checkpoint_path}")
+
+# Save Final Model to local directory
+final_model_path = os.path.join(LOCAL_CHECKPOINT_DIR, "resnet50_final.pth")
+torch.save(model.state_dict(), final_model_path)
+print(f"Final model saved at: {final_model_path}")
+########################################################################
+# Loading Saved Model
+import torch
+import torchvision.models as models
+
+# Define the model class (same as used in training)
+class BayesianResNet(torch.nn.Module):
+    def __init__(self, num_classes=10):
+        super(BayesianResNet, self).__init__()
+        self.model = models.resnet50(weights=None)  # No pretrained weights needed for loading
+        self.model.fc = torch.nn.Sequential(
+            torch.nn.Dropout(p=0.5),
+            torch.nn.Linear(self.model.fc.in_features, num_classes)
+        )
+
+    def forward(self, x):
+        return self.model(x)
+
+# Initialize model and load the trained weights
+model = BayesianResNet(num_classes=10)  # Adjust number of classes as per training
+model.load_state_dict(torch.load("local_checkpoints/resnet50_final.pth"))  # Load final checkpoint
+model.eval()  # Set model to evaluation mode
+#################################################################################################
+# Ensures Model Evaluation Mode
+import torch
+import torchvision.transforms as transforms
+from PIL import Image
+
+# Set the model to evaluation mode
+model.eval()
+#################################################################################################
+# Loads and Preprocessess a test image
+!pip install pillow
+import torchvision.transforms as transforms
+from PIL import Image, ImageDraw
+import os
+
+# Define image transformations
+transform = transforms.Compose([
+    transforms.Resize((224, 224)),  # Resize image to 224x224
+    transforms.ToTensor(),  # Convert image to tensor
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Normalize using ImageNet stats
+])
+
+# Load an image (change 'test_image.jpg' to your image path)
+image_path = "test_image.jpg"
+
+# Check if the image file exists
+if not os.path.exists(image_path):
+    print(f"The file '{image_path}' does not exist. Creating a dummy image for testing...")
+    # Create a dummy image (replace with your actual image if needed)
+    dummy_image = Image.new('RGB', (224, 224), color = 'red')
+    draw = ImageDraw.Draw(dummy_image)
+    draw.text((50,50), "Dummy Image", fill=(255,255,255))
+    dummy_image.save(image_path)
+    print(f"A dummy image has been created at '{image_path}'. Please replace with your own test image.")
+
+# Open the image
+try:
+  image = Image.open(image_path).convert("RGB")  # Ensure image is in RGB format
+except FileNotFoundError:
+    raise FileNotFoundError(f"Error: The file '{image_path}' still does not exist. Please check the path or ensure the file was created correctly.")
+# Apply transformations
+input_tensor = transform(image).unsqueeze(0)  # Add batch dimension
+#################################################################################################
+# Load and pre-process test images
+import torch
+import torchvision.transforms as transforms
+from PIL import Image
+import os
+
+# Define Image Transformations
+transform = transforms.Compose([
+    transforms.Resize((224, 224)),  # Resize image to 224x224
+    transforms.ToTensor(),  # Convert image to tensor
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Normalize using ImageNet stats
+])
+
+# List of 32 dataset image paths
+image_paths = [
+    "/root/.cache/kagglehub/datasets/sumn2u/garbage-classification-v2/versions/8/garbage-dataset/metal/metal_1764.jpg",
+    "/root/.cache/kagglehub/datasets/sumn2u/garbage-classification-v2/versions/8/garbage-dataset/plastic/plastic_793.jpg",
+    "/root/.cache/kagglehub/datasets/sumn2u/garbage-classification-v2/versions/8/garbage-dataset/plastic/plastic_2075.jpg",
+    "/root/.cache/kagglehub/datasets/sumn2u/garbage-classification-v2/versions/8/garbage-dataset/clothes/clothes_1764.jpg",
+    "/root/.cache/kagglehub/datasets/sumn2u/garbage-classification-v2/versions/8/garbage-dataset/clothes/clothes_1762.jpg",
+    "/root/.cache/kagglehub/datasets/sumn2u/garbage-classification-v2/versions/8/garbage-dataset/clothes/clothes_1081.jpg",
+    "/root/.cache/kagglehub/datasets/sumn2u/garbage-classification-v2/versions/8/garbage-dataset/battery/battery_67.jpg",
+    "/root/.cache/kagglehub/datasets/sumn2u/garbage-classification-v2/versions/8/garbage-dataset/metal/metal_1094.jpg",
+    "/root/.cache/kagglehub/datasets/sumn2u/garbage-classification-v2/versions/8/garbage-dataset/shoes/shoes_1666.jpg",
+    "/root/.cache/kagglehub/datasets/sumn2u/garbage-classification-v2/versions/8/garbage-dataset/paper/paper_1088.jpg",
+    "/root/.cache/kagglehub/datasets/sumn2u/garbage-classification-v2/versions/8/garbage-dataset/plastic/plastic_1480.jpg",
+    "/root/.cache/kagglehub/datasets/sumn2u/garbage-classification-v2/versions/8/garbage-dataset/glass/glass_3556.jpg",
+    "/root/.cache/kagglehub/datasets/sumn2u/garbage-classification-v2/versions/8/garbage-dataset/clothes/clothes_1304.jpg",
+    "/root/.cache/kagglehub/datasets/sumn2u/garbage-classification-v2/versions/8/garbage-dataset/trash/trash_575.jpg",
+    "/root/.cache/kagglehub/datasets/sumn2u/garbage-classification-v2/versions/8/garbage-dataset/battery/battery_521.jpg",
+    "/root/.cache/kagglehub/datasets/sumn2u/garbage-classification-v2/versions/8/garbage-dataset/clothes/clothes_4082.jpg",
+    "/root/.cache/kagglehub/datasets/sumn2u/garbage-classification-v2/versions/8/garbage-dataset/trash/trash_119.jpg",
+    "/root/.cache/kagglehub/datasets/sumn2u/garbage-classification-v2/versions/8/garbage-dataset/plastic/plastic_1940.jpg",
+    "/root/.cache/kagglehub/datasets/sumn2u/garbage-classification-v2/versions/8/garbage-dataset/clothes/clothes_3149.jpg",
+    "/root/.cache/kagglehub/datasets/sumn2u/garbage-classification-v2/versions/8/garbage-dataset/plastic/plastic_2498.jpg",
+    "/root/.cache/kagglehub/datasets/sumn2u/garbage-classification-v2/versions/8/garbage-dataset/cardboard/cardboard_928.jpg",
+    "/root/.cache/kagglehub/datasets/sumn2u/garbage-classification-v2/versions/8/garbage-dataset/paper/paper_790.jpg",
+    "/root/.cache/kagglehub/datasets/sumn2u/garbage-classification-v2/versions/8/garbage-dataset/clothes/clothes_3280.jpg",
+    "/root/.cache/kagglehub/datasets/sumn2u/garbage-classification-v2/versions/8/garbage-dataset/plastic/plastic_1422.jpg",
+    "/root/.cache/kagglehub/datasets/sumn2u/garbage-classification-v2/versions/8/garbage-dataset/metal/metal_1976.jpg",
+    "/root/.cache/kagglehub/datasets/sumn2u/garbage-classification-v2/versions/8/garbage-dataset/clothes/clothes_2213.jpg",
+    "/root/.cache/kagglehub/datasets/sumn2u/garbage-classification-v2/versions/8/garbage-dataset/paper/paper_2016.jpg",
+    "/root/.cache/kagglehub/datasets/sumn2u/garbage-classification-v2/versions/8/garbage-dataset/cardboard/cardboard_1894.jpg",
+    "/root/.cache/kagglehub/datasets/sumn2u/garbage-classification-v2/versions/8/garbage-dataset/clothes/clothes_521.jpg",
+    "/root/.cache/kagglehub/datasets/sumn2u/garbage-classification-v2/versions/8/garbage-dataset/clothes/clothes_5312.jpg",
+    "/root/.cache/kagglehub/datasets/sumn2u/garbage-classification-v2/versions/8/garbage-dataset/metal/metal_2461.jpg",
+    "/root/.cache/kagglehub/datasets/sumn2u/garbage-classification-v2/versions/8/garbage-dataset/metal/metal_1213.jpg"
+]
+
+# Process and transform images
+for img_path in image_paths:
+    if not os.path.exists(img_path):
+        print(f"Warning: {img_path} does not exist. Skipping...")
+        continue
+
+    # Open the image
+    try:
+        image = Image.open(img_path).convert("RGB")  # Ensure image is RGB
+    except Exception as e:
+        print(f"Error loading image {img_path}: {e}")
+        continue
+
+    # Apply transformations
+    input_tensor = transform(image).unsqueeze(0)  # Add batch dimension
+
+    print(f"Processed {img_path} successfully. Tensor shape: {input_tensor.shape}")
+
+# ==============================================================
+# 💡 HOW TO UPDATE WITH NEW IMAGES:
+# 1️⃣ Remove the current 32 image paths in `image_paths` list.
+# 2️⃣ Paste another 32 image file paths from your dataset.
+# 3️⃣ Run the script again to process the new batch.
+# ==============================================================
+###################################################################################################################### Run inference
+# Move image and model to the same device (CPU or GPU)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model.to(device)
+input_tensor = input_tensor.to(device)
+
+# Forward pass through the model
+with torch.no_grad():  # Disable gradient calculation for inference
+    output = model(input_tensor)
+
+# Convert output to probabilities
+probabilities = torch.nn.functional.softmax(output[0], dim=0)
+
+# Get the predicted class
+predicted_class = torch.argmax(probabilities).item()
+
+# Print results
+print(f"Predicted class index: {predicted_class}")
+print(f"Class probabilities: {probabilities}")
+#####################################################################################################################
+# Get Model Performance
+from torch.utils.data import DataLoader, Dataset
+import torchvision.datasets as datasets
+
+# Load test dataset (update path accordingly)
+test_dataset = datasets.ImageFolder(root="path_to_test_data", transform=transform)
+test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
+
+# Evaluate accuracy
+correct = 0
+total = 0
+with torch.no_grad():
+    for images, labels in test_loader:
+        outputs = model(images)
+        _, predicted = torch.max(outputs, 1)
+        total += labels.size(0)
+        correct += (predicted == labels).sum().item()
+
+print(f"Accuracy: {100 * correct / total:.2f}%")
+###################################################################################################################### Query for random selection of images in dataset for testing
+import torch
+import torchvision.transforms as transforms
+from torch.utils.data import DataLoader
+from torchvision import datasets
+from PIL import Image, ImageDraw
+import os
+import random
+import kagglehub
+
+# Step 1: Download the Kaggle Dataset
+sumn2u_garbage_classification_v2_path = kagglehub.dataset_download('sumn2u/garbage-classification-v2')
+
+# Step 2: Define dataset path (update if needed)
+DATASET_PATH = os.path.join(sumn2u_garbage_classification_v2_path, "garbage-dataset")  # Adjusted dataset path
+
+# Ensure the dataset directory exists
+if not os.path.exists(DATASET_PATH):
+    raise FileNotFoundError(f"Dataset path '{DATASET_PATH}' does not exist.")
+
+# Step 3: Define image transformations
+transform = transforms.Compose([
+    transforms.Resize((224, 224)),  # Resize image to 224x224
+    transforms.ToTensor(),  # Convert image to tensor
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Normalize using ImageNet stats
+])
+
+# Step 4: Load dataset using ImageFolder
+dataset = datasets.ImageFolder(root=DATASET_PATH, transform=transform)
+
+# Create DataLoader
+BATCH_SIZE = 32
+dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
+
+# Print dataset info
+print(f"Number of images in dataset: {len(dataset)}")
+
+# Load a batch and print details
+for images, labels in dataloader:
+    print("Batch loaded successfully!")
+    print("Image batch shape:", images.shape)
+    print("Label batch shape:", labels.shape)
+    break  # Stop after first batch
+
+# Step 5: Select 32 random images from dataset
+image_paths = []
+for class_name, _ in dataset.class_to_idx.items():
+    class_dir = os.path.join(DATASET_PATH, class_name)
+    if os.path.isdir(class_dir):
+        images_in_class = [os.path.join(class_dir, img) for img in os.listdir(class_dir) if img.endswith(('jpg', 'jpeg', 'png'))]
+        image_paths.extend(images_in_class)
+
+# Shuffle and pick 32 random images
+random.shuffle(image_paths)
+selected_images = image_paths[:32]
+
+print(f"Selected {len(selected_images)} random images for testing.")
+
+# Step 6: Test loading and processing the images
+for img_path in selected_images:
+    if not os.path.exists(img_path):
+        print(f"Warning: {img_path} does not exist. Skipping...")
+        continue
+
+    # Open the image
+    try:
+        image = Image.open(img_path).convert("RGB")
+    except Exception as e:
+        print(f"Error loading image {img_path}: {e}")
+        continue
+
+    # Apply transformations
+    input_tensor = transform(image).unsqueeze(0)  # Add batch dimension
+
+    print(f"Processed {img_path} successfully. Tensor shape: {input_tensor.shape}")
+###################################################################################################################### Query to verify Dataset
+print(f"Number of images in dataset: {len(train_dataset)}")
+
+for images, labels in train_loader:
+    print("Batch loaded successfully!")
+    print("Image batch shape:", images.shape)
+    print("Label batch shape:", labels.shape)
+    break  # Stop after first batch
+
+
+
