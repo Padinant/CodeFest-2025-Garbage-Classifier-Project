@@ -1,0 +1,32 @@
+import torchvision.transforms as transforms
+from PIL import Image
+import os
+import torch
+
+# Define preprocessing transformations
+transform = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+])
+
+# Set image path
+# Replace 'path_to_test_image.jpg' with the actual path to your image file.
+image_path = "path_to_test_image.jpg"
+
+# Check if file exists before proceeding
+if not os.path.exists(image_path):
+    raise FileNotFoundError(f"Error: The file '{image_path}' does not exist. Please check the path.")
+
+# Load and process image
+image = Image.open(image_path).convert("RGB")
+image = transform(image).unsqueeze(0)  # Add batch dimension
+
+# Perform inference
+with torch.no_grad():
+    output = model(image)
+    predicted_class = torch.argmax(output, dim=1).item()
+
+# Map prediction to class labels
+categories = ["paper", "glass", "shoes", "battery", "biological", "clothes", "plastic", "metal", "trash", "cardboard"]
+print(f"Predicted class: {categories[predicted_class]}")
