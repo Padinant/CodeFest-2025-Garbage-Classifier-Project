@@ -12,9 +12,7 @@ Bayesian ResNet Classification with PyMC and PyTorch
 Overview
 ###########
 
-###########
 This project implements a Bayesian Neural Network (BNN) using PyMC v5 for probabilistic inference and PyTorch for feature extraction. The goal is to classify images of trash and recycling categories using a pre-trained ResNet50 model and Bayesian inference.
-###########
 
 ###########
 Features
