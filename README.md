@@ -1,21 +1,29 @@
 # CodeFest-2025-Garbage-Classifier-Project
 
 ##########
+
 Trash pymc model
+
 ##########
 
 ###########
+
 Bayesian ResNet Classification with PyMC and PyTorch
+
 ###########
 
 ###########
+
 Overview
+
 ###########
 
 This project implements a Bayesian Neural Network (BNN) using PyMC v5 for probabilistic inference and PyTorch for feature extraction. The goal is to classify images of trash and recycling categories using a pre-trained ResNet50 model and Bayesian inference.
 
 ###########
+
 Features
+
 ###########
 
 Dataset Handling: Uses the Garbage Classification v2 dataset from Kaggle.
@@ -46,7 +54,9 @@ DATASET_PATH = sumn2u_garbage_classification_v2_path + "/garbage-dataset"
 Ensure you have Kaggle API credentials set up to download the dataset.
 
 #############
+
 Usage
+
 #############
 
 1. Load Dataset and Preprocess Images
@@ -78,7 +88,9 @@ prediction = predict_pymc(new_image_features, trace)
 print("Predicted Class:", CATEGORIES[np.argmax(prediction)])
 
 ################
+
 Notes
+
 ################
 
 Ensure GPU acceleration is enabled for faster processing (torch.cuda.is_available()).
@@ -88,7 +100,9 @@ Use a subset of images for testing if experiencing memory issues.
 Bayesian inference is computationally intensive—consider reducing iterations for quick testing.
 
 #################
+
 License
+
 #################
 
 This project is open-source under the MIT License.
