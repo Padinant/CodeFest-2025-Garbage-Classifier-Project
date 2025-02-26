@@ -1,0 +1,87 @@
+# Install necessary packages
+!pip uninstall -y theano-pymc pymc3
+!pip install pymc pytensor
+!pip install kagglehub
+
+import os
+import pymc as pm  # Using PyMC v5
+import pytensor.tensor as pt  # Corrected tensor import for PyTensor
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torchvision.transforms as transforms
+import torchvision.datasets as datasets
+import torchvision.models as models
+import numpy as np
+from torch.utils.data import DataLoader
+from torch.amp import GradScaler, autocast
+import kagglehub
+
+# Define categories
+CATEGORIES = ["battery", "biological", "cardboard", "clothes", "glass", "metal", "paper", "plastic", "shoes", "trash"]
+
+# Set device
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {device}")
+
+# Define transformations
+transform = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+])
+
+# Load dataset
+# Construct dataset path the same way as in the first notebook
+sumn2u_garbage_classification_v2_path = kagglehub.dataset_download('sumn2u/garbage-classification-v2')
+DATASET_PATH = sumn2u_garbage_classification_v2_path + "/garbage-dataset"
+
+# Check that the dataset exists to avoid redownloading
+if not os.path.exists(DATASET_PATH):
+    raise FileNotFoundError(f"Dataset not found at {DATASET_PATH}. Ensure the first code block has been run.")
+
+
+train_dataset = datasets.ImageFolder(root=DATASET_PATH, transform=transform)
+train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=2)
+
+# Load Pretrained ResNet
+resnet = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
+num_features = resnet.fc.in_features
+resnet.fc = nn.Identity()  # Remove last layer to extract features
+resnet.to(device)
+
+# Extract features from dataset
+def extract_features(model, loader):
+    model.eval()
+    features, labels = [], []
+    with torch.no_grad():
+        for images, targets in loader:
+            images = images.to(device)
+            output = model(images)
+            features.append(output.cpu().numpy())
+            labels.append(targets.numpy())
+    return np.vstack(features), np.hstack(labels)
+
+X_train, y_train = extract_features(resnet, train_loader)
+
+# Define Bayesian Model with PyMC
+with pm.Model() as bayesian_resnet:
+    W = pm.Normal("W", mu=0, sigma=1, shape=(num_features, len(CATEGORIES)))  # Bayesian weights
+    b = pm.Normal("b", mu=0, sigma=1, shape=(len(CATEGORIES),))  # Bias term
+
+    logits = pt.dot(X_train, W) + b
+    y_pred = pm.Categorical("y_pred", pm.math.softmax(logits), observed=y_train)
+
+    approx = pm.fit(n=50000, method=pm.ADVI())  # Variational Inference
+    trace = approx.sample(1000)
+
+# Perform inference
+def predict_pymc(X_new, trace):
+    with bayesian_resnet:
+        posterior_predictive = pm.sample_posterior_predictive(trace, var_names=["y_pred"], samples=1000)
+    return np.mean(posterior_predictive["y_pred"], axis=0)
+
+# Example prediction
+new_image_features = X_train[:1]  # Taking one sample as an example
+prediction = predict_pymc(new_image_features, trace)
+print("Predicted Class:", CATEGORIES[np.argmax(prediction)])
