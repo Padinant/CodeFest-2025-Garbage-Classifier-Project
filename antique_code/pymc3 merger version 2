@@ -1,0 +1,82 @@
+import os
+import pymc as pm  # Using PyMC v5 for Bayesian inference
+import pytensor.tensor as pt  # PyTensor replaces Theano
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torchvision.transforms as transforms
+import torchvision.datasets as datasets
+import torchvision.models as models
+import numpy as np
+from torch.utils.data import DataLoader
+from torch.amp import GradScaler, autocast
+import kagglehub
+
+# Define categories corresponding to dataset classes
+CATEGORIES = ["battery", "biological", "cardboard", "clothes", "glass", "metal", "paper", "plastic", "shoes", "trash"]
+
+# Set device for computation (GPU if available, otherwise CPU)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {device}")
+
+# Define transformations to preprocess images before feeding into the model
+transform = transforms.Compose([
+    transforms.Resize((224, 224)),  # Resize images to match ResNet input size
+    transforms.ToTensor(),  # Convert images to tensors
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Normalize using ImageNet statistics
+])
+
+# Download dataset from KaggleHub
+sumn2u_garbage_classification_v2_path = kagglehub.dataset_download('sumn2u/garbage-classification-v2')
+DATASET_PATH = sumn2u_garbage_classification_v2_path + "/garbage-dataset"
+
+# Ensure dataset is available before proceeding
+if not os.path.exists(DATASET_PATH):
+    raise FileNotFoundError(f"Dataset not found at {DATASET_PATH}. Ensure the dataset is correctly downloaded.")
+
+# Load dataset into PyTorch
+train_dataset = datasets.ImageFolder(root=DATASET_PATH, transform=transform)
+train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=2)
+
+# Load Pretrained ResNet50 model and modify it for feature extraction
+resnet = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
+num_features = resnet.fc.in_features
+resnet.fc = nn.Identity()  # Remove classification layer to use model as feature extractor
+resnet.to(device)
+
+# Function to extract feature embeddings from dataset using the ResNet model
+def extract_features(model, loader):
+    model.eval()  # Set model to evaluation mode
+    features, labels = [], []
+    with torch.no_grad():  # Disable gradient calculation for efficiency
+        for images, targets in loader:
+            images = images.to(device)
+            output = model(images)  # Extract deep features
+            features.append(output.cpu().numpy())
+            labels.append(targets.numpy())
+    return np.vstack(features), np.hstack(labels)
+
+# Extract image features and labels from dataset
+X_train, y_train = extract_features(resnet, train_loader)
+
+# Define Bayesian neural network model using PyMC
+with pm.Model() as bayesian_resnet:
+    W = pm.Normal("W", mu=0, sigma=1, shape=(num_features, len(CATEGORIES)))  # Prior distribution for weights
+    b = pm.Normal("b", mu=0, sigma=1, shape=(len(CATEGORIES),))  # Prior distribution for bias terms
+    
+    logits = pt.dot(X_train, W) + b  # Compute logits using Bayesian parameters
+    y_pred = pm.Categorical("y_pred", pm.math.softmax(logits), observed=y_train)  # Likelihood function
+    
+    approx = pm.fit(n=50000, method=pm.ADVI())  # Approximate posterior using Variational Inference
+    trace = approx.sample(1000)  # Sample posterior distribution
+
+# Function to perform inference using the trained Bayesian model
+def predict_pymc(X_new, trace):
+    with bayesian_resnet:
+        posterior_predictive = pm.sample_posterior_predictive(trace, var_names=["y_pred"], samples=1000)
+    return np.mean(posterior_predictive["y_pred"], axis=0)  # Return mean prediction probability
+
+# Example: Make a prediction using the Bayesian model
+new_image_features = X_train[:1]  # Take a sample image's extracted features
+prediction = predict_pymc(new_image_features, trace)  # Perform inference
+print("Predicted Class:", CATEGORIES[np.argmax(prediction)])  # Output predicted class label
