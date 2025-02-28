@@ -1,6 +1,6 @@
 # CodeFest-2025-Garbage-Classifier-Project
-# Future Development Paths
-# Oscar The G.I.A.I Garbage Detector
+
+# Oscar The G.A.I.A Green Automated Intelligent Assistant Garbage Detector
 
 ## Overview ##
 This project implements a garbage classification model using MobileNet for feature extraction and Keras for training and inference. The model is designed to classify different types of waste into categories such as battery, biological, cardboard, clothes, glass, metal, paper, plastic, shoes, and trash.
