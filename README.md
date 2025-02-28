@@ -28,7 +28,7 @@ The dataset used for training this model is publicly available on Kaggle:
 Each category contains labeled images for supervised training.
 
 ---
-For general GitHub users
+For general GitHub users:
 ## Installation & Setup
 
 ### **1. Clone Repository**
