@@ -73,12 +73,6 @@ This will:
 - Fine-tune the model on the 10-class dataset
 - Save the best model checkpoint
 
-### **Hyperparameters Used**:
-- Optimizer: **Adam**
-- Learning Rate: **0.001**
-- Batch Size: **32**
-- Epochs: **25**
-
 To adjust parameters, edit `config.py`.
 
 ---
