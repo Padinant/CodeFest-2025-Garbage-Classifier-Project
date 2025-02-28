@@ -1,4 +1,5 @@
 # CodeFest-2025-Garbage-Classifier-Project
+# Future Development Paths
 # Oscar The G.I.A.I Garbage Detector
 
 ## Overview ##
