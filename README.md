@@ -129,9 +129,15 @@ python evaluate.py
 ---
 
 ## Future Improvements
-- **Dataset Expansion**: Adding more images for better generalization
-- **Model Optimization**: Experimenting with EfficientNet or ResNet
-- **Deployment**: Convert to a TensorFlow Lite model for edge devices
+uture Enhancements
+- Implement data augmentation to improve generalization.
+- Experiment with alternative Bayesian inference methods.
+- Optimize inference speed using TensorFlow Lite or ONNX.
+- Integrate Oscar The G.I.A.I (Garbage in Artificial Intelligence out): A hybrid garbage classification model combining Bayesian inference from PyMC with deep learning using TensorFlow and PyTorch. 
+  - Leverages Bayesian Neural Networks (BNNs) for uncertainty estimation.
+  - Uses Depthwise Separable Convolutions similar to MobileNet for efficiency.
+  - Enhances interpretability while maintaining high classification accuracy.
+- Develop a Bayesian ResNet Classification Model for additional probabilistic classification capabilities.
 
 ---
 
