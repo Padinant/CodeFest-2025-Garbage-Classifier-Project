@@ -1,4 +1,4 @@
-# MobileNet Garbage Detector
+# Project GAIA: Green Automated Intelligent Assistant
 
 ## Project Overview
 **Project GAIA: Green Automated Intelligent Assistant**
