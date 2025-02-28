@@ -129,7 +129,6 @@ python evaluate.py
 ---
 
 ## Future Improvements
-Future Enhancements
 - Implement data augmentation to improve generalization.
 - Experiment with alternative Bayesian inference methods.
 - Optimize inference speed using TensorFlow Lite or ONNX.
