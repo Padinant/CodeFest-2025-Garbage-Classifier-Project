@@ -1,4 +1,101 @@
 # CodeFest-2025-Garbage-Classifier-Project
+# Oscar The G.I.A.I Garbage Detector
+
+## Overview ##
+This project implements a garbage classification model using MobileNet for feature extraction and Keras for training and inference. The model is designed to classify different types of waste into categories such as battery, biological, cardboard, clothes, glass, metal, paper, plastic, shoes, and trash.
+
+## Features ##
+- Pretrained MobileNet Model: Utilizes MobileNet with `imagenet` weights for feature extraction.
+- Custom Dataset Handling: Loads and preprocesses images from the dataset.
+- Model Training: Fine-tunes MobileNet on a custom garbage dataset.
+- Inference Support: Predicts waste category for new images.
+
+## Dependencies
+Ensure you have the following libraries installed before running the notebook:
+```bash
+pip install tensorflow keras numpy matplotlib
+```
+
+## Dataset
+The dataset is structured in the following way:
+```
+/content/garbage-dataset/
+    ├── battery/
+    │   ├── battery_101.jpg
+    │   ├── battery_102.jpg
+    ├── biological/
+    │   ├── biological_101.jpg
+    ├── cardboard/
+    │   ├── cardboard_101.jpg
+    ...
+```
+Update `dataset_path` accordingly in the notebook if using a different dataset location.
+
+## Step-by-Step Guide to Running the Program
+
+### Step 1: Clone the Repository
+```bash
+git clone https://github.com/your-repo/MobileNetGarbageDetector.git
+cd MobileNetGarbageDetector
+```
+
+### Step 2: Install Dependencies
+```bash
+pip install -r requirements.txt
+```
+
+### Step 3: Prepare the Dataset
+- Ensure the dataset is placed in the correct directory (`/content/garbage-dataset/`).
+- If using a custom dataset, modify the dataset path in the script accordingly.
+
+### Step 4: Train the Model
+Run the following command inside a Jupyter Notebook or Python script:
+```python
+python train.py
+```
+This will start training the MobileNet-based garbage classification model.
+
+### Step 5: Run Inference on a Sample Image
+To classify a new image, use the following script:
+```python
+from tensorflow.keras.models import load_model
+from tensorflow.keras.preprocessing import image
+import numpy as np
+
+# Load trained model
+model = load_model("MobileNetGarbageDetector.h5")
+
+# Load and preprocess an image
+img = image.load_img("path_to_image.jpg", target_size=(224, 224))
+img_array = image.img_to_array(img)
+img_array = np.expand_dims(img_array, axis=0) / 255.0
+
+# Make prediction
+predictions = model.predict(img_array)
+predicted_class = np.argmax(predictions)
+print("Predicted class:", predicted_class)
+```
+
+### Step 6: Save and Load the Model
+To save the trained model:
+```python
+model.save("MobileNetGarbageDetector.h5")
+```
+To load the saved model:
+```python
+from tensorflow.keras.models import load_model
+model = load_model("MobileNetGarbageDetector.h5")
+```
+
+## Notes
+- Ensure the dataset path is correctly set before running the notebook.
+- Use GPU acceleration if available for faster training (`!nvidia-smi` to check GPU availability in Colab).
+- Adjust `epochs` and `batch_size` in the training process for better performance.
+
+## License
+This project is open-source and available under the **MIT License**.
+
+
 # Oscar The G.I.A.I Garbage in Artificial Intelligence out: Hybrid Garbage Classification Model
 
 ## Overview
