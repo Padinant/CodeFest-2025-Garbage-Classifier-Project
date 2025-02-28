@@ -7,6 +7,7 @@ This repository contains a convolutional neural network (CNN) based garbage clas
 This model helps facilitate better waste segregation and recycling efforts using computer vision.
 
 ---
+For instructions on how to run the executable, please see the instruction details in our executable file
 
 ## Dataset
 The dataset used for training this model is publicly available on Kaggle:
