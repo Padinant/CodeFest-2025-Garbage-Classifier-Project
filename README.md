@@ -98,18 +98,6 @@ Prediction Probabilities: [Battery: 0.1, Biological: 0.05, Cardboard: 0.02, ... 
 ```
 
 ---
-
-## Model Performance
-
-The trained model achieves **high accuracy** on test images.
-
-| Metric          | Value |
-|----------------|-------|
-| Accuracy       | 91.3% |
-| Precision      | 89.5% |
-| Recall         | 90.2% |
-| F1 Score       | 89.8% |
-
 #### **Confusion Matrix**:
 A confusion matrix is generated using:
 ```python
