@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-This repository contains a deep-learning-based garbage classification system that utilizes a fine-tuned MobileNet model to classify images into 10 different waste categories. The project was developed for CodeFest 2025 under Challenge #1 by Team #10: Padina Nasiri Toussi, Timothy Winans.
+This repository contains a CNN based garbage classification system that utilizes a fine-tuned MobileNet model to classify images into 10 different waste categories. The project was developed for CodeFest 2025 under Challenge #1 by Team #10: Padina Nasiri Toussi, Timothy Winans.
 
 This model helps facilitate better waste segregation and recycling efforts using computer vision.
 
