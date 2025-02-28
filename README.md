@@ -97,7 +97,7 @@ model = load_model("MobileNetGarbageDetector.h5")
 This project is open-source and available under the **MIT License**.
 
 
-# Oscar The G.I.A.I Garbage in Artificial Intelligence out: Hybrid Garbage Classification Model
+# Oscar The G.I.A.I Garbage in Artificial Intelligence out: Hybrid Garbage Classification Model (Still in Development)
 
 ## Overview
 Oscar is a hybrid garbage classification model that combines Bayesian inference from PyMC with deep learning using TensorFlow and PyTorch. This model is designed to classify garbage images into various categories for improved recycling and waste management. The dataset is sourced from Kaggle's "Garbage Classification v2" dataset. .  
@@ -169,7 +169,7 @@ Oscar provides an innovative hybrid approach to garbage classification by mergin
 
 ##########
 
-Trash pymc model
+Trash pymc model (Still in development)
 
 ###########
 
