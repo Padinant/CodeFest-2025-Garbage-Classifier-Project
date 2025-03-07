@@ -27,6 +27,15 @@ The dataset used for training this model is publicly available on Kaggle:
 
 Each category contains labeled images for supervised training.
 
+## Strengths of the Model
+- An already energy efficient and low cost base model (MobileNet), fine-tuned on the recycling dataset
+- Uses Depthwise Separable Convolutions for efficiency, and reduced number of parameters.
+- Enhances interpretability while maintaining high classification accuracy.
+- Focus on other metrics beyond just accuracy, to minimize contaminated and missed recyclings
+- Could be deployed on low-power devices like Raspberry Pi or mobile phones
+- The dataset is processed efficiently, using image compression and resizing techniques to limit storage and computational overhead.
+- Batch processing and on-the-fly augmentation reduce the need for high memory and storage requirements.
+
 ---
 For general GitHub users:
 ## Installation & Setup
@@ -37,89 +46,44 @@ git clone https://github.com/your-username/MobileNet-Garbage-Detector.git
 cd MobileNet-Garbage-Detector
 ```
 
-### **2. Setup Virtual Environment (Recommended)**
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows use 'venv\\Scripts\\activate'
-```
+### **2. Open FinalMobileNetGarbageDetector.ipynb (Recommended on Google Colab)**
+This notebook was used to train the final model
 
-### **3. Install Dependencies**
-```bash
-pip install -r requirements.txt
-```
+It will:
+- Load and preprocess the dataset (resizing images to 224x224, normalizing)
+- Load the MobileNet base model with ImageNet weights
+- Fine-tune the model on the 10-class dataset
+- Provide useful analysis and metrics on model performance
+- Save the trained model
 
-### **4. Setup Kaggle API for Dataset Download**
+### **3. Setup Kaggle API for Dataset Download**
 Sign up at [Kaggle](https://www.kaggle.com) and create an API token:
 1. Go to `Account` → `Create New API Token`
 2. Save `kaggle.json` to `~/.kaggle/` (Linux/Mac) or `%HOMEPATH%\.kaggle\` (Windows)
 
-Then run:
-```bash
-pip install kaggle
-kaggle datasets download -d sumn2u/garbage-classification-v2
-unzip garbage-classification-v2.zip -d data
-```
+Then, follow the instructions found in FinalMobileNetGarbageDetector to setup Kaggle API using your Kaggle username and key
 
----
+### **4. Train and Save the Model**
+Follow along with the FinalMobileNetGarbageDetector notebook instructions to train the model, and save a copy of it on google colab
 
-## Training the Model
+### **5. Upload trained model on ProjectExecutable.ipynb (Recommended on Google Colab)**
+Follow along with the instructions in ProjectExecutable, to upload the trained model on the notebook session storage.
+Then, you can run the notebook to get multiple types of classification reports for individual or multiple images, based on your needs.
+Among other things, the notebook also has optional informative helper functions to help you gather and preprocess your input data.
 
-Run the training script to fine-tune **MobileNet** on the garbage dataset:
-```bash
-python train.py
-```
-This will:
-- Preprocess the dataset (resizing images to 224x224, normalizing)
-- Load the MobileNet model with ImageNet weights
-- Fine-tune the model on the 10-class dataset
-- Save the best model checkpoint
-
-To adjust parameters, edit `config.py`.
-
----
-
-## Running Inference
-Once trained, the model can classify new images.
-
-### **1. Run the Inference Script**
-```bash
-python predict.py --image_path test_image.jpg
-```
-
-### **2. Example Output**:
+### **An Example Output**:
 ```
 Predicted Class: Plastic
-Prediction Probabilities: [Battery: 0.1, Biological: 0.05, Cardboard: 0.02, ... Plastic: 0.85, Trash: 0.05]
+Top Three Prediction Probabilities: [Plastic: 0.85, Glass: 0.06, Battery: 0.03]
 ```
-
----
-#### **Confusion Matrix**:
-A confusion matrix is generated using:
-```python
-python evaluate.py
-```
-
 ---
 
-## Troubleshooting
-**Common Issues & Fixes**
-| Issue | Solution |
-|--------|-----------|
-| `ModuleNotFoundError: No module named 'tensorflow'` | Run `pip install tensorflow keras` |
-| Kaggle API not found | Ensure `kaggle.json` is placed correctly |
-| Out of memory (OOM) on GPU | Reduce batch size: `batch_size = 16` |
-
----
-
-## Future Improvements
-- Implement data augmentation to improve generalization.
-- Experiment with alternative Bayesian inference methods.
+## Future Areas of Improvement
+- Implement further data augmentation (such as rotating images) to improve generalization.
+- Experiment with alternative Computer Vision models.
 - Optimize inference speed using TensorFlow Lite or ONNX.
-- Integrate Oscar The G.I.A.I (Garbage in Artificial Intelligence out): A hybrid garbage classification model combining Bayesian inference from PyMC with deep learning using TensorFlow and PyTorch. 
-  - Leverages Bayesian Neural Networks (BNNs) for uncertainty estimation.
-  - Uses Depthwise Separable Convolutions similar to MobileNet for efficiency.
-  - Enhances interpretability while maintaining high classification accuracy.
-- Develop a Bayesian ResNet Classification Model for additional probabilistic classification capabilities.
+- Leverage Bayesian Neural Networks (BNNs) for uncertainty estimation.
+- Integrate with a BNN to create a hybrid garbage classification model combining Bayesian inference from PyMC with deep learning using TensorFlow and PyTorch through an ensemble approach.  (For example, see the antique_code folder for early versions of the BNN model, Oscar The G.I.A.I, which was developed separately but in parallel with GAIA)
 
 ---
 
